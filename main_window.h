@@ -3,6 +3,7 @@
 
 #include <QtWidgets>
 #include "cef.h"
+#include "cef_widget.h"
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -12,10 +13,12 @@ class MainWindow : public QMainWindow {
   ~MainWindow();
 
  protected:
-    void timerEvent(QTimerEvent *event);
+  void timerEvent(QTimerEvent *event);
+  void showEvent(QShowEvent *event);
 
  private:
   Cef *cef_;
+  CefWidget *cef_widg_;
   QLineEdit *url_line_edit_;
 
  private slots:
