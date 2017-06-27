@@ -31,10 +31,22 @@ func start() error {
 	}
 
 	switch os.Args[1] {
+	case "rerun":
+		err := clean()
+		if err == nil {
+			err = run()
+		}
+		return err
 	case "run":
 		return run()
 	case "clean":
 		return clean()
+	case "rebuild":
+		err := clean()
+		if err == nil {
+			err = build()
+		}
+		return err
 	case "build":
 		return build()
 	default:
@@ -46,7 +58,11 @@ func run() error {
 	if err := build(); err != nil {
 		return err
 	}
-	return execCmd(filepath.Join(os.Args[2], "qt_cef_poc.exe"))
+	target, err := target()
+	if err != nil {
+		return err
+	}
+	return execCmd(filepath.Join(target, "qt_cef_poc.exe"))
 }
 
 func clean() error {
@@ -58,10 +74,10 @@ func clean() error {
 }
 
 func build() error {
-	if len(os.Args) < 3 || (os.Args[2] != "release" && os.Args[2] != "debug") {
-		return fmt.Errorf("Unknown target")
+	target, err := target()
+	if err != nil {
+		return err
 	}
-	target := os.Args[2]
 	// Get qmake path
 	qmakeExeName := "qmake"
 	if isWindows {
@@ -99,6 +115,17 @@ func build() error {
 	return nil
 }
 
+func target() (string, error) {
+	target := "debug"
+	if len(os.Args) >= 3 {
+		if os.Args[2] != "release" && os.Args[2] != "debug" {
+			return "", fmt.Errorf("Unknown target '%v'", os.Args[2])
+		}
+		target = os.Args[2]
+	}
+	return target, nil
+}
+
 func execCmd(name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Stdout = os.Stdout
@@ -112,13 +139,29 @@ func copyResources(qmakePath string, target string) error {
 		return fmt.Errorf("Unable to find CEF_DIR env var")
 	}
 	// Copy over some Qt DLLs
-	err := copyEachToDirIfNotPresent(filepath.Dir(qmakePath), target,
+	qtDlls := []string {
 		"Qt5Core.dll",
 		"Qt5Gui.dll",
 		"Qt5Widgets.dll",
-	)
+	};
+	// Debug libs are d.dll
+	if target == "debug" {
+		for i := range qtDlls {
+			qtDlls[i] = strings.Replace(qtDlls[i], ".dll", "d.dll", -1)
+		}
+	}
+	err := copyEachToDirIfNotPresent(filepath.Dir(qmakePath), target, qtDlls...)
 	if err != nil {
 		return err
+	}
+
+	// Need special ucrtbased.dll for debug builds
+	if target == "debug" {
+		err = copyEachToDirIfNotPresent("C:\\Program Files (x86)\\Windows Kits\\10\\bin\\x64\\ucrt",
+			target, "ucrtbased.dll");
+		if err != nil {
+			return err
+		}
 	}
 
 	// Copy over CEF libs
