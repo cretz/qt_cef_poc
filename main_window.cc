@@ -39,10 +39,10 @@ void MainWindow::timerEvent(QTimerEvent*) {
 }
 
 void MainWindow::showEvent(QShowEvent* event) {
-  cef_widg_->EmbedBrowser();
+  cef_widg_->EmbedBrowser(this, url_line_edit_);
   QWidget::showEvent(event);
 }
 
 void MainWindow::UrlEntered() {
-  qInfo() << "You entered " << url_line_edit_->text();
+  cef_widg_->LoadUrl(url_line_edit_->text());
 }

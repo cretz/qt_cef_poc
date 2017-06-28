@@ -12,12 +12,14 @@ SOURCES += \
     cef.cc \
     main.cc \
     cef_widget.cc \
-    main_window.cc
+    main_window.cc \
+    cef_handler.cc
 
 HEADERS  += \
     cef.h \
     cef_widget.h \
-    main_window.h
+    main_window.h \
+    cef_handler.h
 
 Release:PROFILE = Release
 Debug:PROFILE = Debug
@@ -25,6 +27,7 @@ Debug:PROFILE = Debug
 INCLUDEPATH += $$(CEF_DIR)
 
 win32 {
+    LIBS += -luser32
     LIBS += -L$$(CEF_DIR)/$$PROFILE -llibcef
     LIBS += -L$$(CEF_DIR)/libcef_dll_wrapper/$$PROFILE -llibcef_dll_wrapper
 
