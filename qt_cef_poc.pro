@@ -27,6 +27,11 @@ INCLUDEPATH += $$(CEF_DIR)
 win32 {
     LIBS += -L$$(CEF_DIR)/$$PROFILE -llibcef
     LIBS += -L$$(CEF_DIR)/libcef_dll_wrapper/$$PROFILE -llibcef_dll_wrapper
+
+    # Chromium reads the manifest, needs a specific one
+    # See http://magpcss.org/ceforum/viewtopic.php?f=6&t=14721
+    CONFIG -= embed_manifest_exe
+    RC_FILE = qt_cef_poc.rc
 } else {
     LIBS += -L$$(CEF_DIR)/$$PROFILE -lcef
     LIBS += -L$$(CEF_DIR)/libcef_dll_wrapper/$$PROFILE -lcef_dll_wrapper
