@@ -48,6 +48,8 @@ previously run `release` build, run:
 
     go run build.go package release
 
+Once complete, the package(s) will in `release/package` (e.g. qt_cef_poc.zip in Windows)
+
 ## TODO
 
 * Move everything but the exe to a sub folder for cleaner deployment

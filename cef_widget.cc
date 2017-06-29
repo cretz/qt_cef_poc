@@ -19,10 +19,12 @@ void CefWidget::EmbedBrowser(QMainWindow *main_win,
   win_info.SetAsChild((CefWindowHandle) winId(),
                       RECT { 0, 0, width(), height() });
   CefBrowserSettings settings;
-  CefRefPtr<CefHandler> handler(new CefHandler(main_win, url_line_edit));
+  CefRefPtr<CefHandler> handler(new CefHandler(main_win,
+                                               url_line_edit,
+                                               this));
   browser_ = CefBrowserHost::CreateBrowserSync(win_info,
                                     handler,
-                                    CefString("http://google.com"),
+                                    CefString("http://example.com"),
                                     settings,
                                     nullptr);
 }
