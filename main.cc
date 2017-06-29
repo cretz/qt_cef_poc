@@ -3,7 +3,7 @@
 #include "cef.h"
 
 int main(int argc, char *argv[]) {
-  Cef cef;
+  Cef cef(argc, argv);
   if (cef.EarlyExitCode() >= 0) return cef.EarlyExitCode();
 
   QApplication app(argc, argv);

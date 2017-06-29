@@ -1,5 +1,4 @@
 #include "cef_widget.h"
-#include <Windows.h>
 #include "include/cef_client.h"
 #include "cef_handler.h"
 
@@ -41,17 +40,4 @@ void CefWidget::moveEvent(QMoveEvent *event) {
 
 void CefWidget::resizeEvent(QResizeEvent *event) {
   this->updateSize();
-}
-
-void CefWidget::updateSize() {
-  // TODO: abstract, this is win only
-  // Basically just set the browser handle to the same dimensions as widget
-  if (browser_) {
-    auto browser_host = browser_->GetHost();
-    auto browser_win = browser_host->GetWindowHandle();
-    SetWindowPos(browser_win, (HWND) this->winId(), 0, 0,
-                 this->width(), this->height(),
-                 SWP_NOZORDER);
-    browser_host->NotifyMoveOrResizeStarted();
-  }
 }

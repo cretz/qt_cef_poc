@@ -27,6 +27,10 @@ Debug:PROFILE = Debug
 INCLUDEPATH += $$(CEF_DIR)
 
 win32 {
+    SOURCES += \
+        cef_win.cc \
+        cef_widget_win.cc
+
     LIBS += -luser32
     LIBS += -L$$(CEF_DIR)/$$PROFILE -llibcef
     LIBS += -L$$(CEF_DIR)/libcef_dll_wrapper/$$PROFILE -llibcef_dll_wrapper

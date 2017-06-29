@@ -1,13 +1,9 @@
 #include "cef.h"
-#include <Windows.h>
-#include "include/cef_app.h"
 
-Cef::Cef() {
+Cef::Cef(int argc, char *argv[]) {
   CefEnableHighDPISupport();
 
-  // TODO: move to Windows-specific code
-  auto hinst = GetModuleHandleW(NULL);
-  CefMainArgs main_args(hinst);
+  CefMainArgs main_args(this->MainArgs(argc, argv));
 
   early_exit_code_ = CefExecuteProcess(main_args, NULL, NULL);
   if (early_exit_code_ < 0) {
