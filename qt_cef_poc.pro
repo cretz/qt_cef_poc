@@ -6,7 +6,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 CONFIG += c++14
 
 # We want a console window for logs during debug
-Debug:CONFIG += console
+debug:CONFIG += console
 
 SOURCES += \
     cef.cc \
@@ -21,8 +21,8 @@ HEADERS  += \
     main_window.h \
     cef_handler.h
 
-Release:PROFILE = Release
-Debug:PROFILE = Debug
+release:PROFILE = Release
+debug:PROFILE = Debug
 
 INCLUDEPATH += $$(CEF_DIR)
 
@@ -39,7 +39,12 @@ win32 {
     # See http://magpcss.org/ceforum/viewtopic.php?f=6&t=14721
     CONFIG -= embed_manifest_exe
     RC_FILE = qt_cef_poc.rc
-} else {
+}
+
+unix {
+    SOURCES += \
+        cef_linux.cc \
+        cef_widget_linux.cc
     LIBS += -L$$(CEF_DIR)/$$PROFILE -lcef
-    LIBS += -L$$(CEF_DIR)/libcef_dll_wrapper/$$PROFILE -lcef_dll_wrapper
+    LIBS += -L$$(CEF_DIR)/libcef_dll_wrapper -lcef_dll_wrapper_$$PROFILE
 }

@@ -12,8 +12,9 @@ class CefWidget : public QWidget {
   CefWidget(Cef *cef, QWidget *parent = 0);
   ~CefWidget();
 
-  void EmbedBrowser(QMainWindow *main_win,
-                    QLineEdit *url_line_edit);
+  // If result is non-null, it needs to replace this widget
+  QPointer<QWidget> EmbedBrowser(QMainWindow *main_win,
+                                 QLineEdit *url_line_edit);
   void LoadUrl(const QString &url);
 
  protected:
@@ -21,7 +22,7 @@ class CefWidget : public QWidget {
   void resizeEvent(QResizeEvent *event);
 
  private:
-  void updateSize();
+  void UpdateSize();
 
   Cef *cef_;
   CefRefPtr<CefBrowser> browser_;

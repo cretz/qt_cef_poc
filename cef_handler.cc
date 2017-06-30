@@ -11,7 +11,7 @@ CefHandler::CefHandler(QPointer<QMainWindow> main_win,
 void CefHandler::OnTitleChange(CefRefPtr<CefBrowser> browser,
                                const CefString &title) {
   if (main_win_) {
-    main_win_->setWindowTitle(QString::fromWCharArray(title.c_str()) +
+    main_win_->setWindowTitle(QString::fromStdString(title.ToString()) +
                               " - QT CEF POC");
   }
 }
@@ -20,7 +20,7 @@ void CefHandler::OnAddressChange(CefRefPtr<CefBrowser> browser,
                                  CefRefPtr<CefFrame> frame,
                                  const CefString &url) {
   if (frame->IsMain() && url_line_edit_) {
-    url_line_edit_->setText(QString::fromWCharArray(url.c_str()));
+    url_line_edit_->setText(QString::fromStdString(url.ToString()));
   }
 }
 
