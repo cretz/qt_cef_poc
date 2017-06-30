@@ -44,7 +44,13 @@ win32 {
 unix {
     SOURCES += \
         cef_linux.cc \
-        cef_widget_linux.cc
+        cef_widget_linux.cc \
+        cef_embed_window_linux.cc
+    HEADERS += \
+        cef_embed_window_linux.h
+    LIBS += -lX11
     LIBS += -L$$(CEF_DIR)/$$PROFILE -lcef
     LIBS += -L$$(CEF_DIR)/libcef_dll_wrapper -lcef_dll_wrapper_$$PROFILE
+    release:DESTDIR = release
+    debug:DESTDIR = debug
 }

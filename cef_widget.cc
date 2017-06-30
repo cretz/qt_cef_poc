@@ -1,8 +1,6 @@
 #include "cef_widget.h"
 
-CefWidget::CefWidget(Cef *cef, QWidget *parent) : QWidget(parent) {
-  cef_ = cef;
-}
+CefWidget::CefWidget(Cef *cef, QWidget *parent) : QWidget(parent), cef_(cef) {}
 
 CefWidget::~CefWidget() {
   if (browser_) {

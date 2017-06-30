@@ -22,7 +22,18 @@ Before running the build script on Windows, you must have the prerequisites:
 
 ### Linux Prerequisites
 
-(TODO)
+Before running the build script on Windows, you must have the prerequisites:
+
+* Latest Qt (5.x) installed w/ `qmake` on the `PATH`
+* Latest CMake installed w/ `cmake` on the `PATH`
+* Latest Python (2.x) installed w/ `python` on the `PATH`
+* Latest Go installed w/ `go` on the `PATH`
+* Latest GCC installed w/ `gcc` and `g++` on the `PATH`
+* Latest Make installed w/ `make` on the `PATH`
+* Latest [Linux 64-bit standard dist of CEF](http://opensource.spotify.com/cefbuilds/index.html#linux64_builds)
+  extracted w/ `CEF_DIR` environment variable set to the base CEF extracted dir
+* Latest GTK 2.x installed and on the library path
+* This repo cloned w/ the shell at the repo root
 
 ### MacOS Prerequisites
 
@@ -52,6 +63,7 @@ Once complete, the package(s) will in `release/package` (e.g. qt_cef_poc.zip in 
 
 ## TODO
 
+* Fix focus issues between browser and URL bar on all platforms
 * Move everything but the exe to a sub folder for cleaner deployment
   * For CEF, see [this](http://www.magpcss.org/ceforum/viewtopic.php?f=6&t=10296) post
   * May need to manually `LoadLibrary` and/or use

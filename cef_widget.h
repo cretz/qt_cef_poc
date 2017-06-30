@@ -17,12 +17,13 @@ class CefWidget : public QWidget {
                                  QLineEdit *url_line_edit);
   void LoadUrl(const QString &url);
 
+  void UpdateSize();
+
  protected:
   void moveEvent(QMoveEvent *event);
   void resizeEvent(QResizeEvent *event);
 
  private:
-  void UpdateSize();
 
   Cef *cef_;
   CefRefPtr<CefBrowser> browser_;

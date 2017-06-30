@@ -14,7 +14,6 @@ class MainWindow : public QMainWindow {
 
  protected:
   void timerEvent(QTimerEvent *event);
-  void showEvent(QShowEvent *event);
 
  private:
   Cef *cef_;

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -21,12 +23,13 @@ func main() {
 	}
 }
 
-var isWindows = runtime.GOOS == "windows"
 var debugEnabled = false
 
 func start() error {
-	// Only supporting Windows 64 bit for now
-	if !isWindows || runtime.GOARCH != "amd64" {
+	if runtime.GOOS != "windows" && runtime.GOOS != "linux" {
+		return fmt.Errorf("Unsupported OS '%v'", runtime.GOOS)
+	}
+	if runtime.GOARCH != "amd64" {
 		return fmt.Errorf("Unsupported OS '%v' or arch '%v'", runtime.GOOS, runtime.GOARCH)
 	}
 	if len(os.Args) < 2 {
@@ -69,7 +72,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	return execCmd(filepath.Join(target, "qt_cef_poc.exe"))
+	return execCmd(filepath.Join(target, exeExt("qt_cef_poc")))
 }
 
 func clean() error {
@@ -86,11 +89,7 @@ func build() error {
 		return err
 	}
 	// Get qmake path
-	qmakeExeName := "qmake"
-	if isWindows {
-		qmakeExeName += ".exe"
-	}
-	qmakePath, err := exec.LookPath(qmakeExeName)
+	qmakePath, err := exec.LookPath(exeExt("qmake"))
 	if err != nil {
 		return err
 	}
@@ -101,17 +100,33 @@ func build() error {
 	}
 
 	// Run qmake TODO: put behind flag
-	if err := execCmd(qmakePath, "qt_cef_poc.pro"); err != nil {
+	qmakeArgs := []string{}
+	if runtime.GOOS == "linux" {
+		if target == "debug" {
+			qmakeArgs = []string{"CONFIG+=debug"}
+		} else {
+			qmakeArgs = []string{"CONFIG+=release", "CONFIG-=debug"}
+		}
+	}
+	qmakeArgs = append(qmakeArgs, "qt_cef_poc.pro")
+	if err := execCmd(qmakePath, qmakeArgs...); err != nil {
 		return fmt.Errorf("QMake failed: %v", err)
 	}
 
-	// Run nmake
-	nmakePath, err := exec.LookPath("nmake.exe")
-	if err != nil {
-		return err
+	// Run nmake if windows, make if linux
+	makeExe := "make"
+	if runtime.GOOS == "windows" {
+		makeExe = "nmake.exe"
 	}
-	if err := execCmd(nmakePath, target); err != nil {
+	if err := execCmd(makeExe, target); err != nil {
 		return fmt.Errorf("NMake failed: %v", err)
+	}
+
+	// Chmod on linux
+	if runtime.GOOS == "linux" {
+		if err = os.Chmod(filepath.Join(target, "qt_cef_poc"), 0755); err != nil {
+			return err
+		}
 	}
 
 	// Copy over resources
@@ -129,7 +144,7 @@ func pkg() error {
 	}
 	// Just move over the files that matter to a new deploy dir and zip em up
 	deployDir := filepath.Join(target, "package", "qt_cef_poc")
-	if err = os.MkdirAll(deployDir, os.ModeDir); err != nil {
+	if err = os.MkdirAll(deployDir, 0755); err != nil {
 		return err
 	}
 
@@ -162,8 +177,12 @@ func pkg() error {
 		return err
 	}
 
-	// Now create a zip file with
-	err = createSingleDirZipFile(deployDir, filepath.Join(target, "package", "qt_cef_poc.zip"))
+	// Now create a zip or tar file with all the goods
+	if runtime.GOOS == "windows" {
+		err = createSingleDirZipFile(deployDir, filepath.Join(target, "package", "qt_cef_poc.zip"))
+	} else {
+		err = createSingleDirTarGzFile(deployDir, filepath.Join(target, "package", "qt_cef_poc.tar.gz"))
+	}
 	if err != nil {
 		return err
 	}
@@ -172,6 +191,40 @@ func pkg() error {
 }
 
 func buildCef() error {
+	if runtime.GOOS == "windows" {
+		return buildCefWindows()
+	}
+	return buildCefLinux()
+}
+
+func buildCefLinux() error {
+	cefDir := os.Getenv("CEF_DIR")
+	if cefDir == "" {
+		return fmt.Errorf("Unable to find CEF_DIR env var")
+	}
+	// We have to run separate make runs for different target types
+	makeLib := func(target string) error {
+		if err := execCmdInDir(cefDir, "cmake", "-DCMAKE_BUILD_TYPE="+target, "."); err != nil {
+			return fmt.Errorf("CMake failed: %v", err)
+		}
+		wrapperDir := filepath.Join(cefDir, "libcef_dll_wrapper")
+		if err := execCmdInDir(wrapperDir, "make"); err != nil {
+			return fmt.Errorf("Make failed: %v", err)
+		}
+		if err := os.Rename(filepath.Join(wrapperDir, "libcef_dll_wrapper.a"),
+			filepath.Join(wrapperDir, "libcef_dll_wrapper_"+target+".a")); err != nil {
+			return fmt.Errorf("Unable to rename .a file: %v", err)
+		}
+		return nil
+	}
+
+	if err := makeLib("Debug"); err != nil {
+		return err
+	}
+	return makeLib("Release")
+}
+
+func buildCefWindows() error {
 	cefDir := os.Getenv("CEF_DIR")
 	if cefDir == "" {
 		return fmt.Errorf("Unable to find CEF_DIR env var")
@@ -181,7 +234,7 @@ func buildCef() error {
 		return fmt.Errorf("CMake failed: %v", err)
 	}
 
-	// Replace a couple of strings
+	// Replace a couple of strings in VC proj file on windows
 	dllWrapperDir := filepath.Join(cefDir, "libcef_dll_wrapper")
 	vcProjFile := filepath.Join(dllWrapperDir, "libcef_dll_wrapper.vcxproj")
 	projXml, err := ioutil.ReadFile(vcProjFile)
@@ -218,6 +271,13 @@ func target() (string, error) {
 	return target, nil
 }
 
+func exeExt(baseName string) string {
+	if runtime.GOOS == "windows" {
+		return baseName + ".exe"
+	}
+	return baseName
+}
+
 func execCmd(name string, args ...string) error {
 	return execCmdInDir("", name, args...)
 }
@@ -231,6 +291,62 @@ func execCmdInDir(dir string, name string, args ...string) error {
 }
 
 func copyResources(qmakePath string, target string) error {
+	if runtime.GOOS == "windows" {
+		return copyResourcesWindows(qmakePath, target)
+	}
+	return copyResourcesLinux(qmakePath, target)
+}
+
+func copyResourcesLinux(qmakePath string, target string) error {
+	cefDir := os.Getenv("CEF_DIR")
+	if cefDir == "" {
+		return fmt.Errorf("Unable to find CEF_DIR env var")
+	}
+	// Everything read only except by owner
+	// Copy over some Qt DLLs
+	err := copyAndChmodEachToDirIfNotPresent(0644, filepath.Rel(filepath.Dir(qmakePath), "../lib"), target,
+		"libQt5Core.so",
+		"libQt5Gui.so",
+		"libQt5Widgets.so",
+	)
+	if err != nil {
+		return err
+	}
+
+	// Copy over CEF libs
+	err = copyAndChmodEachToDirIfNotPresent(0644, filepath.Join(cefDir, strings.Title(target)), target,
+		"libcef.so",
+		"natives_blob.bin",
+		"snapshot_blob.bin",
+	)
+	if err != nil {
+		return err
+	}
+
+	// Copy over CEF resources
+	cefResDir := filepath.Join(cefDir, "Resources")
+	err = copyAndChmodEachToDirIfNotPresent(0644, cefResDir, target,
+		"icudtl.dat",
+		"cef.pak",
+		"cef_100_percent.pak",
+		"cef_200_percent.pak",
+		"cef_extensions.pak",
+		"devtools_resources.pak",
+	)
+	if err != nil {
+		return err
+	}
+
+	// And CEF locales
+	targetLocaleDir := filepath.Join(target, "locales")
+	if err = os.MkdirAll(targetLocaleDir, 0644); err != nil {
+		return err
+	}
+	err = copyAndChmodEachToDirIfNotPresent(0644, filepath.Join(cefResDir, "locales"), targetLocaleDir, "en-US.pak")
+	return err
+}
+
+func copyResourcesWindows(qmakePath string, target string) error {
 	cefDir := os.Getenv("CEF_DIR")
 	if cefDir == "" {
 		return fmt.Errorf("Unable to find CEF_DIR env var")
@@ -299,6 +415,22 @@ func copyResources(qmakePath string, target string) error {
 	return err
 }
 
+func chmodEachInDir(mode os.FileMode, dir string, filenames ...string) error {
+	for _, filename := range filenames {
+		if err := os.Chmod(filepath.Join(dir, filename), mode); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func copyAndChmodEachToDirIfNotPresent(mode os.FileMode, srcDir string, destDir string, srcFilenames ...string) error {
+	if err := copyEachToDirIfNotPresent(srcDir, destDir, srcFilenames...); err != nil {
+		return err
+	}
+	return chmodEachInDir(mode, destDir, srcFilenames...)
+}
+
 func copyEachToDirIfNotPresent(srcDir string, destDir string, srcFilenames ...string) error {
 	for _, srcFilename := range srcFilenames {
 		if err := copyToDirIfNotPresent(filepath.Join(srcDir, srcFilename), destDir); err != nil {
@@ -342,21 +474,58 @@ func debugLogf(format string, v ...interface{}) {
 	}
 }
 
+func createSingleDirTarGzFile(dir string, tarFilename string) error {
+	tarFile, err := os.Create(tarFilename)
+	if err != nil {
+		return err
+	}
+	defer tarFile.Close()
+
+	gw := gzip.NewWriter(tarFile)
+	defer gw.Close()
+	w := tar.NewWriter(gw)
+	defer w.Close()
+
+	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		tarPath := filepath.ToSlash(filepath.Join(filepath.Base(dir), rel))
+		srcPath := filepath.Join(dir, rel)
+
+		header, err := tar.FileInfoHeader(info, "")
+		if err != nil {
+			return err
+		}
+		header.Name = tarPath
+		if err := w.WriteHeader(header); err != nil {
+			return err
+		}
+		src, err := os.Open(srcPath)
+		if err != nil {
+			return err
+		}
+		defer src.Close()
+		_, err = io.Copy(w, src)
+		return err
+	})
+}
+
 func createSingleDirZipFile(dir string, zipFilename string) error {
 	zipFile, err := os.Create(zipFilename)
 	if err != nil {
 		return err
 	}
+	defer zipFile.Close()
 
 	w := zip.NewWriter(zipFile)
-	closed := false
-	defer func() {
-		if !closed {
-			w.Close()
-		}
-	}()
+	defer w.Close()
 
-	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
@@ -379,10 +548,4 @@ func createSingleDirZipFile(dir string, zipFilename string) error {
 		_, err = io.Copy(dest, src)
 		return err
 	})
-	if err != nil {
-		return err
-	}
-
-	closed = true
-	return w.Close()
 }

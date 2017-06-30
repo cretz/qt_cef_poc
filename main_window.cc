@@ -1,10 +1,9 @@
 #include "main_window.h"
 
-MainWindow::MainWindow(Cef *cef, QWidget *parent) : QMainWindow(parent) {
-  // Set CEF and start the timer
+MainWindow::MainWindow(Cef *cef, QWidget *parent)
+    : QMainWindow(parent), cef_(cef) {
   // TODO: how to determine best interval
   // TODO: is the timer stopped for us?
-  cef_ = cef;
   if (startTimer(10) == 0) {
     throw std::runtime_error("Unable to start CEF timer");
   }
@@ -29,6 +28,11 @@ MainWindow::MainWindow(Cef *cef, QWidget *parent) : QMainWindow(parent) {
   auto frame = new QFrame;
   frame->setLayout(layout);
   setCentralWidget(frame);
+
+  auto override_widg = cef_widg_->EmbedBrowser(this, url_line_edit_);
+  if (override_widg) {
+    layout->addWidget(override_widg, 1, 0);
+  }
 }
 
 MainWindow::~MainWindow() {
@@ -36,14 +40,6 @@ MainWindow::~MainWindow() {
 
 void MainWindow::timerEvent(QTimerEvent*) {
   cef_->Tick();
-}
-
-void MainWindow::showEvent(QShowEvent* event) {
-  auto override_widg = cef_widg_->EmbedBrowser(this, url_line_edit_);
-  if (override_widg) {
-    layout->addWidget(override_widg, 1, 0);
-  }
-  QWidget::showEvent(event);
 }
 
 void MainWindow::UrlEntered() {

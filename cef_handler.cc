@@ -2,11 +2,10 @@
 
 CefHandler::CefHandler(QPointer<QMainWindow> main_win,
                        QPointer<QLineEdit> url_line_edit,
-                       QPointer<QWidget> browser_widg) {
-  main_win_ = main_win;
-  url_line_edit_ = url_line_edit;
-  browser_widg_ = browser_widg;
-}
+                       QPointer<QWidget> browser_widg)
+    : main_win_(main_win),
+      url_line_edit_(url_line_edit),
+      browser_widg_(browser_widg) {}
 
 void CefHandler::OnTitleChange(CefRefPtr<CefBrowser> browser,
                                const CefString &title) {
