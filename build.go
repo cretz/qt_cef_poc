@@ -101,12 +101,10 @@ func build() error {
 
 	// Run qmake TODO: put behind flag
 	qmakeArgs := []string{}
-	if runtime.GOOS == "linux" {
-		if target == "debug" {
-			qmakeArgs = []string{"CONFIG+=debug"}
-		} else {
-			qmakeArgs = []string{"CONFIG+=release", "CONFIG-=debug"}
-		}
+	if target == "debug" {
+		qmakeArgs = []string{"CONFIG+=debug"}
+	} else {
+		qmakeArgs = []string{"CONFIG+=release", "CONFIG-=debug"}
 	}
 	qmakeArgs = append(qmakeArgs, "qt_cef_poc.pro")
 	if err := execCmd(qmakePath, qmakeArgs...); err != nil {
