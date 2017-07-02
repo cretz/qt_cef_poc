@@ -95,7 +95,7 @@ func build() error {
 	}
 
 	// Make the dir for the target
-	if err := os.MkdirAll(target, os.ModeDir); err != nil {
+	if err := os.MkdirAll(target, 0755); err != nil {
 		return err
 	}
 
@@ -115,10 +115,13 @@ func build() error {
 
 	// Run nmake if windows, make if linux
 	makeExe := "make"
+	makeArgs := []string{}
 	if runtime.GOOS == "windows" {
 		makeExe = "nmake.exe"
+		// This version takes the target name unlike the Linux one
+		makeArgs = []string{target}
 	}
-	if err := execCmd(makeExe, target); err != nil {
+	if err := execCmd(makeExe, makeArgs...); err != nil {
 		return fmt.Errorf("NMake failed: %v", err)
 	}
 
@@ -157,7 +160,7 @@ func pkg() error {
 	for _, file := range dirFiles {
 		if !file.IsDir() {
 			switch filepath.Ext(file.Name()) {
-			case ".cpp", ".h", ".obj", ".res", ".manifest", ".log":
+			case ".cpp", ".h", ".obj", ".res", ".manifest", ".log", ".o":
 				// No-op
 			default:
 				filesToCopy = append(filesToCopy, file.Name())
@@ -169,7 +172,7 @@ func pkg() error {
 	}
 
 	// And the locales dir
-	if err = os.MkdirAll(filepath.Join(deployDir, "locales"), os.ModeDir); err != nil {
+	if err = os.MkdirAll(filepath.Join(deployDir, "locales"), 0755); err != nil {
 		return err
 	}
 	err = copyEachToDirIfNotPresent(filepath.Join(target, "locales"), filepath.Join(deployDir, "locales"), "en-US.pak")
@@ -304,7 +307,7 @@ func copyResourcesLinux(qmakePath string, target string) error {
 	}
 	// Everything read only except by owner
 	// Copy over some Qt DLLs
-	err := copyAndChmodEachToDirIfNotPresent(0644, filepath.Rel(filepath.Dir(qmakePath), "../lib"), target,
+	err := copyAndChmodEachToDirIfNotPresent(0644, filepath.Join(filepath.Dir(qmakePath), "../lib"), target,
 		"libQt5Core.so",
 		"libQt5Gui.so",
 		"libQt5Widgets.so",
@@ -339,7 +342,7 @@ func copyResourcesLinux(qmakePath string, target string) error {
 
 	// And CEF locales
 	targetLocaleDir := filepath.Join(target, "locales")
-	if err = os.MkdirAll(targetLocaleDir, 0644); err != nil {
+	if err = os.MkdirAll(targetLocaleDir, 0744); err != nil {
 		return err
 	}
 	err = copyAndChmodEachToDirIfNotPresent(0644, filepath.Join(cefResDir, "locales"), targetLocaleDir, "en-US.pak")
@@ -408,7 +411,7 @@ func copyResourcesWindows(qmakePath string, target string) error {
 
 	// And CEF locales
 	targetLocaleDir := filepath.Join(target, "locales")
-	if err = os.MkdirAll(targetLocaleDir, os.ModeDir); err != nil {
+	if err = os.MkdirAll(targetLocaleDir, 0755); err != nil {
 		return err
 	}
 	err = copyEachToDirIfNotPresent(filepath.Join(cefResDir, "locales"), targetLocaleDir, "en-US.pak")
@@ -455,7 +458,11 @@ func copyIfNotPresent(src string, dest string) error {
 		return err
 	}
 	defer in.Close()
-	out, err := os.Create(dest)
+	inStat, err := in.Stat()
+	if err != nil {
+		return err
+	}
+	out, err := os.OpenFile(dest, os.O_RDWR|os.O_CREATE|os.O_TRUNC, inStat.Mode())
 	if err != nil {
 		return err
 	}
@@ -502,6 +509,11 @@ func createSingleDirTarGzFile(dir string, tarFilename string) error {
 			return err
 		}
 		header.Name = tarPath
+		// Remove owner info
+		header.Uname = ""
+		header.Gname = ""
+		header.Uid = 0
+		header.Gid = 0
 		if err := w.WriteHeader(header); err != nil {
 			return err
 		}

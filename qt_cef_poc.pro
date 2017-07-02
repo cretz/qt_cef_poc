@@ -51,6 +51,12 @@ unix {
     LIBS += -lX11
     LIBS += -L$$(CEF_DIR)/$$PROFILE -lcef
     LIBS += -L$$(CEF_DIR)/libcef_dll_wrapper -lcef_dll_wrapper_$$PROFILE
+    QMAKE_RPATHDIR += $ORIGIN
+
+    release:MOC_DIR = release
+    release:OBJECTS_DIR = release
     release:DESTDIR = release
+    debug:MOC_DIR = debug
+    debug:OBJECTS_DIR = debug
     debug:DESTDIR = debug
 }
